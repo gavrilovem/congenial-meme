@@ -15,7 +15,7 @@ namespace WindowsFormsApp1
         BufferedGraphicsContext context;
         BufferedGraphics b_graphics;
         Node activeNode;
-        private enum Act
+        private enum Act // инструменты
         {
             none,
             addNode,
@@ -23,7 +23,7 @@ namespace WindowsFormsApp1
             addEdge,
             rmEdge,
         }
-        private Act currentAction;
+        private Act currentAction; // активный инструмент
         public static DirectoryInfo stores = new DirectoryInfo("stores\\");
         FileInfo vertexInfo = new FileInfo(stores + "vertex.txt");
         FileInfo edgeInfo = new FileInfo(stores + "edge.txt");
