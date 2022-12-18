@@ -29,16 +29,17 @@ namespace WindowsFormsApp1
         FileInfo edgeInfo = new FileInfo(stores + "edge.txt");
         List<Node> nodes = new List<Node>();
         List<Edge> edges = new List<Edge>();
+        List<Edge> marked_edges = new List<Edge>();
         public Form1()
         {
             InitializeComponent();
-            context = BufferedGraphicsManager.Current;
-            context.MaximumBuffer = new Size(panel1.Width + 1, panel1.Height + 1);
-            b_graphics = context.Allocate(panel1.CreateGraphics(),
-                 new Rectangle(0, 0, panel1.Width, panel1.Height));
+            context = BufferedGraphicsManager.Current;                              // инициализация буфера из которого будет загружаться картинка
+            context.MaximumBuffer = new Size(panel1.Width + 1, panel1.Height + 1);  // следующий фрейм будет заменяться предыдущим, если он уже готов к отображению
+            b_graphics = context.Allocate(panel1.CreateGraphics(),                  // это нужно для того, чтобы перемещать элементы на форме
+                 new Rectangle(0, 0, panel1.Width, panel1.Height));                 // без этого картинка будет мерцать
             graphics = b_graphics.Graphics;
 
-            if (!vertexInfo.Exists) File.Create(vertexInfo.FullName);
+            if (!vertexInfo.Exists) File.Create(vertexInfo.FullName); // считывание информации о графе из файла
             if (!edgeInfo.Exists) File.Create(edgeInfo.FullName);
             StreamReader vr = new StreamReader(stores + vertexInfo.Name);
             StreamReader er = new StreamReader(stores + edgeInfo.Name);
@@ -54,43 +55,45 @@ namespace WindowsFormsApp1
             }
             vr.Close();
             er.Close();
-            Dijkstra d = new Dijkstra();
         }
 
         private void timer1_Tick(object sender, System.EventArgs e)
         {
-            graphics.Clear(Color.White);
-
-            foreach (Edge edge in edges)
+            graphics.Clear(Color.White); // отчистка панели
+            foreach (Edge edge in edges) // отрисовка ребер
             {
+                if (marked_edges.Contains(edge))
+                    edge.color = Color.Blue;
+                else edge.color = Color.Black;
                 edge.Draw(graphics);
             }
-            foreach (Node node in nodes)
+            foreach (Node node in nodes) // отрисовка узлов
             {
                 node.Draw(graphics);
             }
-            b_graphics.Render();
+            b_graphics.Render(); // прогрузка фрейма из буфера
         }
         private void panel1_MouseDown(object sender, MouseEventArgs e)
         {
-            switch (currentAction)
-            {
-                case (Act.none):
-                    if (e.Button == MouseButtons.Left) set_active_node(e.Location);
-                    return;
-                case (Act.addNode):
-                    create_node(e.Location);
-                    return;
-                case (Act.rmNode):
-                    remove_node(e.Location);
-                    return;
-                case (Act.addEdge):
-                    add_edge(e.Location);
-                    return;
-                case (Act.rmEdge):
-                    remove_edge(e.Location);
-                    return;
-            }
+            if (e.Button == MouseButtons.Left)
+                switch (currentAction) // отработка нажатия 
+                {
+                    case (Act.none):
+                        set_active_node(e.Location);
+                        break;
+                    case (Act.addNode):
+                        create_node(e.Location);
+                        break;
+                    case (Act.rmNode):
+                        remove_node(e.Location);
+                        break;
+                    case (Act.addEdge):
+                        add_edge(e.Location);
+                        break;
+                    case (Act.rmEdge):
+                        remove_edge(e.Location);
+                        break;
+                }
         }
         private void set_active_node(Point p)
         {
@@ -104,11 +107,13 @@ namespace WindowsFormsApp1
         }
         private void panel1_MouseMove(object sender, MouseEventArgs e)
         {
+            //протягивание ребра
             if (currentAction == Act.addEdge && activeNode != null)
             {
                 graphics.DrawLine(new Pen(Brushes.Black, 2), activeNode.x, activeNode.y, e.Location.X, e.Location.Y);
                 b_graphics.Render();
             }
+            //перемещение узла
             if (currentAction == Act.none && activeNode != null && e.Location.X < panel1.Width && e.Location.X > 0 && e.Location.Y < panel1.Height && e.Location.Y > 0)
             {
                 nodes[nodes.IndexOf(activeNode)].x = e.Location.X;
@@ -165,11 +170,12 @@ namespace WindowsFormsApp1
         }
         private void panel1_MouseUp(object sender, MouseEventArgs e)
         {
+            //добавление ребра
             if (currentAction == Act.addEdge && activeNode != null)
             {
                 foreach (Node node in nodes)
                 {
-                    if (node.IsHit(e.Location) && activeNode != node)
+                    if (node.IsHit(e.Location) && activeNode != node) //проверка на вхождение курсора в отличный от активного узел
                     {
                         int length;
                         while (true)
@@ -183,6 +189,7 @@ namespace WindowsFormsApp1
                     }
                 }
             }
+            //добавление в файл
             StreamWriter nw = new StreamWriter(stores + vertexInfo.Name, false);
             StreamWriter ew = new StreamWriter(stores + edgeInfo.Name, false);
             foreach (Node node in nodes)
@@ -197,7 +204,7 @@ namespace WindowsFormsApp1
             ew.Close();
             activeNode = null;
         }
-        private void setAct(Act act)
+        private void setAct(Act act) // изменение выбранного инструмента
         {
             currentAction = currentAction != act ? act : Act.none;
         }
@@ -227,7 +234,8 @@ namespace WindowsFormsApp1
                     return;
             }
         }
-        private void button1_Click(object sender, System.EventArgs e) // addNode
+        //изменение выбранного инструмента
+        private void button1_Click(object sender, System.EventArgs e) // add node
         {
             setAct(Act.addNode);
             setActiveButtonColor();
@@ -247,153 +255,28 @@ namespace WindowsFormsApp1
             setAct(Act.addEdge);
             setActiveButtonColor();
         }
-
+        //отображение кратчайшего пути
         private void button5_Click(object sender, EventArgs e)
         {
-            int start_ind = (int)numericUpDown1.Value;
-            int end_ind = (int)numericUpDown2.Value;
-            if (start_ind == end_ind) return;
-            Node start = new Node(), end = new Node();
-            foreach (Node node in nodes)
+            int start = (int)numericUpDown1.Value - 1;
+            int dest = (int)numericUpDown2.Value - 1;
+            if (start >= nodes.Count || dest >= nodes.Count) return;
+            marked_edges.Clear();
+            Dijkstra dj = new Dijkstra(nodes, edges);
+            int[] path = dj.AlgoStart(start, dest);
+            int length = 0;
+            for (int i = 1; i < path.Length; i++)
             {
-                node.isVisited = false;
-                if (node.n == start_ind)
+                foreach (Edge edge in edges)
                 {
-                    start = node;
-                }
-                if (node.n == end_ind)
-                {
-                    end = node;
-                }
-            }
-            if (start.n == 0 || end.n == 0) return;
-            List<Node> visited = new List<Node>();
-            List<int> results = new List<int>();
-            visited.Add(start);
-            foreach (Edge edge in edges)
-            {
-                if (edge.v1 == start)
-                {
-                    visited.Add(edge.v2);
-                    results = step_in(edge.v2, end, edge.len, visited.ToList(), results);
-                }
-                if (edge.v2 == start)
-                {
-                    visited.Add(edge.v1);
-                    results = step_in(edge.v1, end, edge.len, visited.ToList(), results);
+                    if ((edge.v1.n == path[i] && edge.v2.n == path[i - 1]) || (edge.v2.n == path[i] && edge.v1.n == path[i - 1]))
+                    {
+                        marked_edges.Add(edge);
+                        length += edge.len;
+                    }
                 }
             }
-            label2.Text = "";
-            results.Sort();
-            label2.Text = "Кратчайший путь: " + results[0].ToString() + "\r\n";
-        }
-        private List<int> step_in(Node step, Node end, int len, List<Node> visited, List<int> results)
-        {
-            foreach (Edge edge in edges)
-            {
-                if ((edge.v1 == end || edge.v2 == end) && (edge.v1 == step || edge.v2 == step))
-                {
-                    results.Add(edge.len + len);
-                    break;
-                }
-                if (edge.v1 == step && !visited.Contains(edge.v2))
-                {
-                    visited.Add(edge.v2);
-                    step_in(edge.v2, end, edge.len + len, visited.ToList(), results);
-                }
-                if (edge.v2 == step && !visited.Contains(edge.v1))
-                {
-                    visited.Add(edge.v1);
-                    step_in(edge.v1, end, edge.len + len, visited.ToList(), results);
-                }
-            }
-            return results;
-        }
-    }
-    class Node
-    {
-        public int n;
-        public int x;
-        public int y;
-        public int R;
-        public Color color;
-        public bool isVisited;
-
-        public Node()
-        {
-        }
-
-        public Node(int n, int x, int y, int R, Color color = default, bool isVisited = false)
-        {
-            this.n = n;
-            this.x = x;
-            this.y = y;
-            this.R = R;
-            this.color = color;
-            this.isVisited = isVisited;
-        }
-        public void Draw(Graphics gr)
-        {
-            Pen pen = new Pen(color, 2);
-            gr.FillEllipse(Brushes.White, (x - R), (y - R), 2 * R, 2 * R);
-            gr.DrawEllipse(pen, (x - R), (y - R), 2 * R, 2 * R);
-            PointF point = new PointF(x - 9, y - 9);
-            gr.DrawString(n.ToString(), new Font("sans-serif", 14), Brushes.Black, point);
-        }
-        public bool IsHit(Point p)
-        {
-            if (x - R <= p.X && x + R >= p.X && y - R <= p.Y && y + R >= p.Y)
-                return true;
-            return false;
-        }
-    }
-
-    class Edge
-    {
-        public Node v1, v2;
-        public int len;
-        public Color color;
-
-        public Edge(Node v1, Node v2, Color color, int len)
-        {
-            this.v1 = v1;
-            this.v2 = v2;
-            this.color = color;
-            this.len = len;
-        }
-        public void Draw(Graphics graphics)
-        {
-            graphics.DrawLine(new Pen(color, 2), new Point(v1.x, v1.y), new Point(v2.x, v2.y));
-            graphics.DrawString(len.ToString(), new Font("sans-serif", 14), Brushes.Black, new PointF((v1.x + v2.x) / 2 - 7, (v1.y + v2.y) / 2 - 7));
-            /*using (Matrix m = new Matrix())
-            {
-                Rectangle rec = new Rectangle(v1.x - 4, v1.y, 8, (int)Math.Sqrt(Math.Pow(v1.x - v2.x, 2) + Math.Pow(v1.y - v2.y, 2)));
-                graphics.DrawRectangle(new Pen(color, 2), rec);
-                m.RotateAt((float)(90 - AngleBetweenPoints(new Point(v1.x, v1.y), new Point(v2.x, v2.y))), new PointF(v1.x, v1.y));
-                graphics.Transform = m;
-                graphics.DrawRectangle(new Pen(color, 2), rec);
-                graphics.ResetTransform();
-            }*/
-        }
-        public double AngleBetweenPoints(Point pointF1, Point pointF2)
-        {
-            float X = pointF1.X - pointF2.X;
-            float Y = pointF1.Y - pointF2.Y;
-            double angle = Math.Atan(Y / X);
-            double grad_angle = angle * 180 / Math.PI;
-            if (pointF1.X > pointF2.X && pointF1.Y < pointF2.Y)
-            {
-                grad_angle = -grad_angle;
-            }
-            if (pointF1.X < pointF2.X)
-            {
-                grad_angle = 180 - grad_angle;
-            }
-            if (pointF1.X > pointF2.X && pointF1.Y > pointF2.Y)
-            {
-                grad_angle = 360 - grad_angle;
-            }
-            return grad_angle;
+            label2.Text = "Кратчайший путь: " + length;
         }
     }
 }
