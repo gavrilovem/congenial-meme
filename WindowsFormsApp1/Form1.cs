@@ -78,21 +78,11 @@ namespace WindowsFormsApp1
             if (e.Button == MouseButtons.Left)
                 switch (currentAction) // отработка нажатия 
                 {
-                    case (Act.none):
-                        set_active_node(e.Location);
-                        break;
-                    case (Act.addNode):
-                        create_node(e.Location);
-                        break;
-                    case (Act.rmNode):
-                        remove_node(e.Location);
-                        break;
-                    case (Act.addEdge):
-                        add_edge(e.Location);
-                        break;
-                    case (Act.rmEdge):
-                        remove_edge(e.Location);
-                        break;
+                    case (Act.none): set_active_node(e.Location); break;
+                    case (Act.addNode): create_node(e.Location); break;
+                    case (Act.rmNode): remove_node(e.Location); break;
+                    case (Act.addEdge): add_edge(e.Location); break;
+                    case (Act.rmEdge): remove_edge(e.Location); break;
                 }
         }
         private void set_active_node(Point p)
